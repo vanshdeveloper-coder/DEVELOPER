@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>A-Frame VR Basketball</title>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
+
+    <script>
+      // Ball ko throw karne ka custom logic
+      AFRAME.registerComponent('throw-ball', {
+        init: function () {
+          var ball = this.el;
+          
+          // Screen par kahin bhi click karne par ball shoot hogi
+          window.addEventListener('click', function () {
+            // Ball ko wapas initial position par lana (Reset)
+            ball.body.position.set(0, 1.5, 2);
+            ball.body.velocity.set(0, 0, 0);
+
+            // Thoda delay dekar force apply karna taaki physics engine reset ho sake
+            setTimeout(() => {
+              // Y, Z axis par force lagana: (Upar 6, Aage -8) - Aap isko apne hisaab se adjust kar sakte hain
+              var velocity = new CANNON.Vec3(0, 6, -8);
+              ball.body.velocity.set(velocity.x, velocity.y, velocity.z);
+            }, 50);
+          });
+        }
+      });
+    </script>
+  </head>
+  <body>
+    <a-scene physics="gravity: -9.8">
+      
+      <a-sky color="#87CEEB"></a-sky>
+
+      <a-plane position="0 0 0" rotation="-90 0 0" width="50" height="50" color="#7BC8A4" static-body></a-plane>
+
+      <a-entity position="0 1.6 4">
+        <a-camera>
+          <a-cursor color="yellow" scale="0.8 0.8 0.8"></a-cursor>
+        </a-camera>
+      </a-entity>
+
+      <a-sphere id="basketball" position="0 1.5 2" radius="0.3" color="#FF8C00" dynamic-body throw-ball></a-sphere>
+
+      <a-cylinder position="0 2 -4" radius="0.1" height="4" color="gray" static-body></a-cylinder>
+      
+      <a-box position="0 4 -4.2" width="2" height="1.5" depth="0.1" color="white" static-body></a-box>
+      
+      <a-torus position="0 3.3 -3.5" rotation="90 0 0" radius="0.4" radius-tubular="0.02" color="red" static-body></a-torus>
+
+    </a-scene>
+  </body>
+</html>
