@@ -2,14 +2,14 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Real Life VR Basketball - Aim Assist</title>
+    <title>Real Life VR Basketball - Fixed Net</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
 
     <script>
       let score = 0;
 
-      // ====== 1. BACKGROUND TREES GENERATOR ======
+      // ====== 1. BACKGROUND TREES ======
       AFRAME.registerComponent('forest-generator', {
         init: function () {
           let scene = this.el;
@@ -37,7 +37,7 @@
         }
       });
 
-      // ====== 2. VR THUMBSTICK MOVEMENT ======
+      // ====== 2. MOVEMENT ======
       AFRAME.registerComponent('vr-movement', {
         init: function () {
           this.player = document.querySelector('#player');
@@ -57,38 +57,34 @@
         }
       });
 
-      // ====== 3. AIM ASSIST (MAGNETISM) ======
-      // Yeh component check karega ki ball ring ke paas hai ya nahi, aur usko pull karega
+      // ====== 3. AIM ASSIST & DOWNWARD PULL ======
       AFRAME.registerComponent('aim-assist', {
         tick: function () {
           let ball = document.querySelector('#ball');
           if (!ball.body) return;
 
           let ballPos = ball.getAttribute('position');
-          // Hoop / Ring ki exact position
           let hoopX = 0;
           let hoopY = 3.3;
           let hoopZ = -3.4;
 
-          // Ball aur hoop ke beech ki doori nikalna
           let distanceX = hoopX - ballPos.x;
           let distanceY = hoopY - ballPos.y;
           let distanceZ = hoopZ - ballPos.z;
           let distance = Math.sqrt(distanceX*distanceX + distanceY*distanceY + distanceZ*distanceZ);
 
-          // Agar ball ring ke 1.2 meter ke daayre (radius) mein aati hai aur niche ki taraf gir rahi hai
           if (distance < 1.2 && ball.body.velocity.y < 2) {
-             // Magnetic pull force lagana hoop ke center ki taraf
              let pullStrength = 3.5; 
-             
-             // X aur Z coordinate ko hoop ki taraf force karna
              ball.body.velocity.x += (distanceX * pullStrength * 0.1);
              ball.body.velocity.z += (distanceZ * pullStrength * 0.1);
+             
+             // YAHAN FIX HAI: Ball ko force karke niche net me bhejna (Downward pull)
+             ball.body.velocity.y -= 0.5; 
           }
         }
       });
 
-      // ====== 4. REAL THROWING MECHANICS (SLOWER & FLOATY) ======
+      // ====== 4. SHOOTING MECHANICS ======
       AFRAME.registerComponent('real-shooter', {
         init: function () {
           this.ball = document.querySelector('#ball');
@@ -115,16 +111,14 @@
           if (!this.isHolding) return;
           this.isHolding = false;
 
-          // Linear damping add kiya jisse hawa me speed slow ho jayegi (Floaty feel)
           this.ball.setAttribute('dynamic-body', 'mass: 0.3; shape: sphere; radius: 0.22; linearDamping: 0.15');
 
           let direction = new THREE.Vector3();
           this.el.object3D.getWorldDirection(direction);
 
-          // Speed factor ko kam kiya taaki slow aur smooth arc bane
           let speedFactor = 8.0; 
           let forceX = -direction.x * speedFactor;
-          let forceY = (-direction.y * speedFactor) + 3.8; // Smooth arc
+          let forceY = (-direction.y * speedFactor) + 3.8; 
           let forceZ = -direction.z * speedFactor;
 
           setTimeout(() => {
@@ -152,7 +146,7 @@
         }
       });
 
-      // ====== 5. SCORE DETECTION ======
+      // ====== 5. SCORE SYSTEM ======
       AFRAME.registerComponent('score-trigger', {
         init: function () {
           this.el.addEventListener('collisions', (e) => {
@@ -199,7 +193,11 @@
         <a-box position="0 -0.15 0.03" width="0.5" height="0.4" depth="0.01" color="#c0392b"></a-box>
       </a-box>
 
-      <a-torus position="0 3.3 -3.4" rotation="90 0 0" radius="0.32" radius-tubular="0.02" color="#c0392b" static-body></a-torus>
+      <a-torus position="0 3.3 -3.4" rotation="90 0 0" radius="0.32" radius-tubular="0.02" color="#c0392b"></a-torus>
+      
+      <a-box position="-0.32 3.3 -3.4" width="0.05" height="0.05" depth="0.2" visible="false" static-body></a-box>
+      <a-box position="0.32 3.3 -3.4" width="0.05" height="0.05" depth="0.2" visible="false" static-body></a-box>
+      <a-box position="0 3.3 -3.08" width="0.2" height="0.05" depth="0.05" visible="false" static-body></a-box>
       
       <a-box position="0 2.9 -3.4" width="0.6" height="0.8" depth="0.6" visible="false" static-body="shape: box; isTrigger: true" score-trigger></a-box>
       
