@@ -37,45 +37,37 @@
         }
       });
 
-      // ====== 2. JOYSTICK MOVEMENT (NEW FEATURE) ======
-      AFRAME.registerComponent('joystick-movement', {
+      // ====== 2. VR THUMBSTICK MOVEMENT (FIXED) ======
+      AFRAME.registerComponent('vr-movement', {
         init: function () {
           this.player = document.querySelector('#player');
-          this.moveX = 0;
-          this.moveZ = 0;
-          
-          // Controller ka thumbstick move hone par values capture karna
-          this.el.addEventListener('axismove', (evt) => {
-            this.moveX = evt.detail.axis[0]; // Left/Right
-            this.moveZ = evt.detail.axis[1]; // Forward/Backward
+          // Official WebXR event for Oculus/Quest Thumbsticks
+          this.el.addEventListener('thumbstickmoved', (evt) => {
+            let x = evt.detail.x;
+            let y = evt.detail.y;
+            
+            if (Math.abs(x) > 0.1 || Math.abs(y) > 0.1) {
+              let pos = this.player.getAttribute('position');
+              this.player.setAttribute('position', {
+                x: pos.x + (x * 0.08), // Speed adjustment Left/Right
+                y: pos.y,
+                z: pos.z + (y * 0.08)  // Speed adjustment Forward/Backward
+              });
+            }
           });
-        },
-        tick: function () {
-          // Deadzone calculation (taaki thoda sa touch hone par apne aap na chale)
-          if (Math.abs(this.moveX) > 0.1 || Math.abs(this.moveZ) > 0.1) {
-            let pos = this.player.getAttribute('position');
-            // Player ki position update karna
-            this.player.setAttribute('position', {
-              x: pos.x + (this.moveX * 0.06), // Speed of Left/Right
-              y: pos.y,
-              z: pos.z + (this.moveZ * 0.06)  // Speed of Forward/Backward
-            });
-          }
         }
       });
 
-      // ====== 3. REAL BASKETBALL THROWING MECHANICS (FIXED) ======
+      // ====== 3. REAL THROWING MECHANICS (FIXED AIM & FORCE) ======
       AFRAME.registerComponent('real-shooter', {
         init: function () {
           this.ball = document.querySelector('#ball');
           this.isHolding = false;
           
-          // Ball ko wapas haath me bulana
           this.el.addEventListener('abuttondown', () => this.spawnBall());
           this.el.addEventListener('xbuttondown', () => this.spawnBall());
           this.el.addEventListener('gripdown', () => this.spawnBall());
 
-          // Trigger se shoot karna
           this.el.addEventListener('triggerdown', () => this.shootBall());
 
           window.addEventListener('keydown', (e) => { if(e.code === 'Space') this.spawnBall(); });
@@ -93,16 +85,16 @@
           if (!this.isHolding) return;
           this.isHolding = false;
 
-          this.ball.setAttribute('dynamic-body', 'mass: 0.6; shape: sphere; radius: 0.22');
+          // Ball ka wajan (mass) thoda kam kiya hai taaki lamba throw aasan ho
+          this.ball.setAttribute('dynamic-body', 'mass: 0.4; shape: sphere; radius: 0.22');
 
           let direction = new THREE.Vector3();
           this.el.object3D.getWorldDirection(direction);
 
-          // === FIX APPLIED HERE ===
-          // Upward force kam kar di hai aur forward speed balance ki hai
-          let speedFactor = 8.5; // Thoda zor lagana padega
+          // === AIM & FORCE PERFECTED ===
+          let speedFactor = 10.5; // Power boost ki hai
           let forceX = -direction.x * speedFactor;
-          let forceY = (-direction.y * speedFactor) + 2.5; // 5 se kam karke 2.5 kar diya, ball upar nahi udegi
+          let forceY = (-direction.y * speedFactor) + 4.2; // Perfect natural upward arc
           let forceZ = -direction.z * speedFactor;
 
           setTimeout(() => {
@@ -130,7 +122,7 @@
         }
       });
 
-      // ====== 4. SCORE DETECTION ======
+      // ====== 4. SCORE DETECTION (BIGGER TRIGGER BOX) ======
       AFRAME.registerComponent('score-trigger', {
         init: function () {
           this.el.addEventListener('collisions', (e) => {
@@ -152,18 +144,17 @@
       <a-light type="ambient" intensity="0.6"></a-light>
 
       <a-plane position="0 0 0" rotation="-90 0 0" width="40" height="40" color="#4a5d23" static-body></a-plane>
-      
       <a-plane position="0 0.01 -2" rotation="-90 0 0" width="8" height="10" color="#7f8c8d"></a-plane>
 
       <a-entity id="player" position="0 0 3" wasd-controls="acceleration: 15">
         
         <a-camera id="camera" look-controls wasd-controls="enabled: false"></a-camera>
 
-        <a-entity id="right-hand" laser-controls="hand: right" real-shooter>
+        <a-entity id="right-hand" laser-controls="hand: right" oculus-touch-controls="hand: right" real-shooter>
            <a-box width="0.1" height="0.1" depth="0.15" color="#e67e22" opacity="0.8"></a-box>
         </a-entity>
 
-        <a-entity id="left-hand" laser-controls="hand: left" joystick-movement>
+        <a-entity id="left-hand" laser-controls="hand: left" oculus-touch-controls="hand: left" vr-movement>
            <a-box width="0.1" height="0.1" depth="0.15" color="#3498db" opacity="0.8"></a-box>
         </a-entity>
       </a-entity>
@@ -181,7 +172,7 @@
 
       <a-torus position="0 3.3 -3.4" rotation="90 0 0" radius="0.32" radius-tubular="0.02" color="#c0392b" static-body></a-torus>
       
-      <a-box position="0 3.1 -3.4" width="0.4" height="0.1" depth="0.4" visible="false" static-body="shape: box; isTrigger: true" score-trigger></a-box>
+      <a-box position="0 2.9 -3.4" width="0.6" height="0.8" depth="0.6" visible="false" static-body="shape: box; isTrigger: true" score-trigger></a-box>
       
       <a-cone position="0 3.0 -3.4" radius-top="0.3" radius-bottom="0.18" height="0.4" color="white" opacity="0.4" open-ended="true"></a-cone>
 
