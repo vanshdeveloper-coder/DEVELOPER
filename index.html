@@ -1,53 +1,132 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>A-Frame VR Basketball</title>
+    <meta charset="utf-8">
+    <title>Fast VR Basketball - Visual Hands</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
 
     <script>
-      // Ball ko throw karne ka custom logic
-      AFRAME.registerComponent('throw-ball', {
-        init: function () {
-          var ball = this.el;
-          
-          // Screen par kahin bhi click karne par ball shoot hogi
-          window.addEventListener('click', function () {
-            // Ball ko wapas initial position par lana (Reset)
-            ball.body.position.set(0, 1.5, 2);
-            ball.body.velocity.set(0, 0, 0);
+      let score = 0;
 
-            // Thoda delay dekar force apply karna taaki physics engine reset ho sake
-            setTimeout(() => {
-              // Y, Z axis par force lagana: (Upar 6, Aage -8) - Aap isko apne hisaab se adjust kar sakte hain
-              var velocity = new CANNON.Vec3(0, 6, -8);
-              ball.body.velocity.set(velocity.x, velocity.y, velocity.z);
-            }, 50);
+      AFRAME.registerComponent('basketball-game', {
+        init: function () {
+          this.ball = document.querySelector('#ball');
+          this.scoreText = document.querySelector('#score-text');
+          this.camera = document.querySelector('#camera');
+          
+          this.isShooting = false;
+          this.speedY = 0;
+          this.speedZ = 0;
+          this.speedX = 0;
+          this.gravity = -0.01; 
+
+          // Click / Trigger universal handler
+          window.addEventListener('click', () => {
+            if (!this.isShooting) this.shootBall();
           });
+
+          // VR Controllers Trigger Detection
+          const leftHand = document.querySelector('#left-hand');
+          const rightHand = document.querySelector('#right-hand');
+          
+          if(leftHand) leftHand.addEventListener('triggerdown', () => { if(!this.isShooting) this.shootBall(); });
+          if(rightHand) rightHand.addEventListener('triggerdown', () => { if(!this.isShooting) this.shootBall(); });
+        },
+
+        shootBall: function () {
+          this.isShooting = true;
+
+          // Camera direction vector calculation for precise aiming
+          const direction = new THREE.Vector3();
+          this.camera.object3D.getWorldDirection(direction);
+
+          // Force vectors
+          this.speedX = -direction.x * 0.25;
+          this.speedY = (-direction.y * 0.25) + 0.18; // Upward arc curve
+          this.speedZ = -direction.z * 0.25;
+        },
+
+        tick: function () {
+          if (this.isShooting) {
+            let pos = this.ball.getAttribute('position');
+            this.speedY += this.gravity; 
+            
+            let newX = pos.x + this.speedX;
+            let newY = pos.y + this.speedY;
+            let newZ = pos.z + this.speedZ;
+
+            this.ball.setAttribute('position', {x: newX, y: newY, z: newZ});
+
+            // Basket Collision Zone (Hoop tracking coordinates)
+            if (newZ <= -3.3 && newZ >= -3.7 && newX >= -0.4 && newX <= 0.4 && newY >= 3.0 && newY <= 3.6) {
+              score += 1;
+              this.scoreText.setAttribute('value', 'SCORE: ' + score);
+              this.resetBall();
+            }
+
+            // Ball Reset bounds
+            if (newY < 0.1 || newZ < -8) {
+              this.resetBall();
+            }
+          } else {
+            // Ball position directly tracks camera/aim point before shooting
+            const camPos = this.camera.getAttribute('position');
+            const direction = new THREE.Vector3();
+            this.camera.object3D.getWorldDirection(direction);
+
+            this.ball.setAttribute('position', {
+              x: camPos.x - direction.x * 0.8,
+              y: camPos.y - direction.y * 0.8 - 0.2,
+              z: camPos.z - direction.z * 0.8
+            });
+          }
+        },
+
+        resetBall: function () {
+          this.isShooting = false;
+          this.speedX = 0;
+          this.speedY = 0;
+          this.speedZ = 0;
         }
       });
     </script>
   </head>
+  
   <body>
-    <a-scene physics="gravity: -9.8">
+    <a-scene basketball-game>
       
-      <a-sky color="#87CEEB"></a-sky>
+      <a-sky color="#A3C1AD"></a-sky>
 
-      <a-plane position="0 0 0" rotation="-90 0 0" width="50" height="50" color="#7BC8A4" static-body></a-plane>
+      <a-plane position="0 0 0" rotation="-90 0 0" width="30" height="30" color="#556B2F"></a-plane>
 
-      <a-entity position="0 1.6 4">
-        <a-camera>
-          <a-cursor color="yellow" scale="0.8 0.8 0.8"></a-cursor>
+      <a-entity id="player" position="0 0 4">
+        <a-camera id="camera" look-controls>
+          <a-cursor id="aim-dot" color="#FF0000" scale="0.5 0.5 0.5"></a-cursor>
         </a-camera>
+
+        <a-entity id="left-hand" oculus-touch-controls="hand: left" laser-controls="hand: left">
+          <a-box width="0.1" height="0.06" depth="0.15" color="#3498db"></a-box>
+          <a-sphere radius="0.04" position="0 0.04 0" color="#2980b9"></a-sphere>
+        </a-entity>
+        
+        <a-entity id="right-hand" oculus-touch-controls="hand: right" laser-controls="hand: right">
+          <a-box width="0.1" height="0.06" depth="0.15" color="#3498db"></a-box>
+          <a-sphere radius="0.04" position="0 0.04 0" color="#2980b9"></a-sphere>
+        </a-entity>
       </a-entity>
 
-      <a-sphere id="basketball" position="0 1.5 2" radius="0.3" color="#FF8C00" dynamic-body throw-ball></a-sphere>
+      <a-sphere id="ball" radius="0.22" color="#FF6600"></a-sphere>
 
-      <a-cylinder position="0 2 -4" radius="0.1" height="4" color="gray" static-body></a-cylinder>
-      
-      <a-box position="0 4 -4.2" width="2" height="1.5" depth="0.1" color="white" static-body></a-box>
-      
-      <a-torus position="0 3.3 -3.5" rotation="90 0 0" radius="0.4" radius-tubular="0.02" color="red" static-body></a-torus>
+      <a-cylinder position="0 2 -4" radius="0.08" height="4" color="#111111"></a-cylinder>
+      <a-box position="0 3.8 -4" width="1.8" height="1.2" depth="0.05" color="#FFFFFF"></a-box>
+      <a-box position="0 3.6 -3.96" width="0.5" height="0.4" depth="0.01" color="#FF0000"></a-box>
+      <a-torus position="0 3.3 -3.5" rotation="90 0 0" radius="0.32" radius-tubular="0.02" color="#FF3300"></a-torus>
+      <a-cone position="0 3.0 -3.5" radius-top="0.3" radius-bottom="0.18" height="0.4" color="#FFFFFF" opacity="0.5" open-ended="true"></a-cone>
+
+      <a-entity position="0 4.9 -3.9">
+        <a-box width="1.5" height="0.6" depth="0.1" color="#222"></a-box>
+        <a-text id="score-text" value="SCORE: 0" position="0 0 0.06" align="center" color="#00FF00" font="mozillavr" width="5"></a-text>
+      </a-entity>
 
     </a-scene>
   </body>
