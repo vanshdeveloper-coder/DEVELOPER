@@ -10,30 +10,26 @@
       let score = 0;
 
       // ====== 1. BACKGROUND TREES GENERATOR ======
-      // Yeh script court ke chaaron taraf fast-loading ped banayegi
       AFRAME.registerComponent('forest-generator', {
         init: function () {
           let scene = this.el;
           for (let i = 0; i < 60; i++) {
-            // Random position circle mein (Court se 8 to 25 meter door)
             let radius = 8 + Math.random() * 17;
             let angle = Math.random() * Math.PI * 2;
             let x = radius * Math.cos(angle);
             let z = radius * Math.sin(angle);
 
-            // Tane (Trunk)
             let trunk = document.createElement('a-cylinder');
             trunk.setAttribute('position', `${x} 1 ${z}`);
             trunk.setAttribute('radius', '0.3');
             trunk.setAttribute('height', '2');
-            trunk.setAttribute('color', '#5C4033'); // Brown
+            trunk.setAttribute('color', '#5C4033'); 
             
-            // Pattiyan (Leaves/Cone)
             let leaves = document.createElement('a-cone');
             leaves.setAttribute('position', `${x} 3 ${z}`);
             leaves.setAttribute('radius-bottom', '1.5');
             leaves.setAttribute('height', '4');
-            leaves.setAttribute('color', '#228B22'); // Forest Green
+            leaves.setAttribute('color', '#228B22'); 
 
             scene.appendChild(trunk);
             scene.appendChild(leaves);
@@ -41,50 +37,74 @@
         }
       });
 
-      // ====== 2. REAL BASKETBALL MECHANICS ======
+      // ====== 2. JOYSTICK MOVEMENT (NEW FEATURE) ======
+      AFRAME.registerComponent('joystick-movement', {
+        init: function () {
+          this.player = document.querySelector('#player');
+          this.moveX = 0;
+          this.moveZ = 0;
+          
+          // Controller ka thumbstick move hone par values capture karna
+          this.el.addEventListener('axismove', (evt) => {
+            this.moveX = evt.detail.axis[0]; // Left/Right
+            this.moveZ = evt.detail.axis[1]; // Forward/Backward
+          });
+        },
+        tick: function () {
+          // Deadzone calculation (taaki thoda sa touch hone par apne aap na chale)
+          if (Math.abs(this.moveX) > 0.1 || Math.abs(this.moveZ) > 0.1) {
+            let pos = this.player.getAttribute('position');
+            // Player ki position update karna
+            this.player.setAttribute('position', {
+              x: pos.x + (this.moveX * 0.06), // Speed of Left/Right
+              y: pos.y,
+              z: pos.z + (this.moveZ * 0.06)  // Speed of Forward/Backward
+            });
+          }
+        }
+      });
+
+      // ====== 3. REAL BASKETBALL THROWING MECHANICS (FIXED) ======
       AFRAME.registerComponent('real-shooter', {
         init: function () {
           this.ball = document.querySelector('#ball');
           this.isHolding = false;
           
-          // VR Controllers Buttons (A, X ya Grip dabane par ball haath mein aayegi)
+          // Ball ko wapas haath me bulana
           this.el.addEventListener('abuttondown', () => this.spawnBall());
           this.el.addEventListener('xbuttondown', () => this.spawnBall());
           this.el.addEventListener('gripdown', () => this.spawnBall());
 
-          // Trigger dabane par ball shoot hogi
+          // Trigger se shoot karna
           this.el.addEventListener('triggerdown', () => this.shootBall());
 
-          // Desktop testing ke liye Spacebar aur Mouse Click
           window.addEventListener('keydown', (e) => { if(e.code === 'Space') this.spawnBall(); });
           window.addEventListener('click', () => { if(this.isHolding) this.shootBall(); });
         },
 
         spawnBall: function () {
           this.isHolding = true;
-          // Physics ko temporarily hata dena taaki ball haath mein rahe
           this.ball.removeAttribute('dynamic-body');
           this.ball.setAttribute('visible', 'true');
-          this.ball.body = null; // Clear old physics data
+          this.ball.body = null; 
         },
 
         shootBall: function () {
           if (!this.isHolding) return;
           this.isHolding = false;
 
-          // Ball par wapas physics lagana
           this.ball.setAttribute('dynamic-body', 'mass: 0.6; shape: sphere; radius: 0.22');
 
-          // Jidhar haath ka ishara hai (Aim) wahan ka vector nikalna
           let direction = new THREE.Vector3();
           this.el.object3D.getWorldDirection(direction);
 
-          // Haath ke aim ke hisaab se force lagana (Real life throw)
-          let forceX = -direction.x * 12;
-          let forceY = (-direction.y * 12) + 5; // Upar ki taraf uchal (Arc)
-          let forceZ = -direction.z * 12;
+          // === FIX APPLIED HERE ===
+          // Upward force kam kar di hai aur forward speed balance ki hai
+          let speedFactor = 8.5; // Thoda zor lagana padega
+          let forceX = -direction.x * speedFactor;
+          let forceY = (-direction.y * speedFactor) + 2.5; // 5 se kam karke 2.5 kar diya, ball upar nahi udegi
+          let forceZ = -direction.z * speedFactor;
 
-          // Thoda delay taaki physics engine load ho jaye
           setTimeout(() => {
             if (this.ball.body) {
               this.ball.body.velocity.set(forceX, forceY, forceZ);
@@ -93,12 +113,10 @@
         },
 
         tick: function () {
-          // Jab ball haath mein ho, toh usko controller ke paas lock rakho
           if (this.isHolding) {
             let handPos = new THREE.Vector3();
             this.el.object3D.getWorldPosition(handPos);
             
-            // Ball ko haath se thoda sa aage rakhna
             let direction = new THREE.Vector3();
             this.el.object3D.getWorldDirection(direction);
             
@@ -112,7 +130,7 @@
         }
       });
 
-      // ====== 3. SCORE DETECTION ======
+      // ====== 4. SCORE DETECTION ======
       AFRAME.registerComponent('score-trigger', {
         init: function () {
           this.el.addEventListener('collisions', (e) => {
@@ -137,17 +155,16 @@
       
       <a-plane position="0 0.01 -2" rotation="-90 0 0" width="8" height="10" color="#7f8c8d"></a-plane>
 
-      <a-text position="0 2 -1" value="Press 'A', 'X', or 'Grip' to Get Ball\nPress 'Trigger' to Shoot!" align="center" color="white" scale="0.6 0.6 0.6"></a-text>
-
-      <a-entity id="player" position="0 0 3">
-        <a-camera id="camera" look-controls></a-camera>
+      <a-entity id="player" position="0 0 3" wasd-controls="acceleration: 15">
+        
+        <a-camera id="camera" look-controls wasd-controls="enabled: false"></a-camera>
 
         <a-entity id="right-hand" laser-controls="hand: right" real-shooter>
            <a-box width="0.1" height="0.1" depth="0.15" color="#e67e22" opacity="0.8"></a-box>
         </a-entity>
 
-        <a-entity id="left-hand" laser-controls="hand: left">
-           <a-box width="0.1" height="0.1" depth="0.15" color="#e67e22" opacity="0.8"></a-box>
+        <a-entity id="left-hand" laser-controls="hand: left" joystick-movement>
+           <a-box width="0.1" height="0.1" depth="0.15" color="#3498db" opacity="0.8"></a-box>
         </a-entity>
       </a-entity>
 
