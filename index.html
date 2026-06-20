@@ -173,13 +173,21 @@
       <a-entity light="type: point; color: #FFF; intensity: 0.6; distance: 20" position="0 4 -2"></a-entity>
 
       <a-entity id="rig" movement-controls kinematic-body position="0 0 0">
+        
         <a-camera position="0 1.6 0" look-controls>
-          <a-cursor raycaster="objects: [hoverable]" color="#FFF"></a-cursor>
+          <a-entity cursor raycaster="objects: [hoverable]" super-hands position="0 0 -1" geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03" material="color: white; shader: flat"></a-entity>
         </a-camera>
-        <a-entity sphere-collider="objects: [hoverable]" super-hands hand-controls="hand: left"></a-entity>
-        <a-entity sphere-collider="objects: [hoverable]" super-hands hand-controls="hand: right"></a-entity>
+        
+        <a-entity sphere-collider="objects: [hoverable]" 
+                  super-hands 
+                  hand-controls="hand: left" 
+                  static-body="shape: sphere; sphereRadius: 0.05"></a-entity>
+                  
+        <a-entity sphere-collider="objects: [hoverable]" 
+                  super-hands 
+                  hand-controls="hand: right" 
+                  static-body="shape: sphere; sphereRadius: 0.05"></a-entity>
+                  
       </a-entity>
-      
-    </a-scene>
   </body>
 </html>
