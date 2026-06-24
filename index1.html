@@ -1,0 +1,332 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>VR Chemistry Lab · Advanced</title>
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <!-- extras for realistic lighting & shadows -->
+  <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; background: #0a0f1a; font-family: 'Segoe UI', system-ui, sans-serif; }
+    .info-tip { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+                background: rgba(10, 20, 30, 0.8); backdrop-filter: blur(4px);
+                color: #b0f0ff; padding: 10px 22px; border-radius: 40px;
+                border: 1px solid #2c6a8f; font-size: 14px; letter-spacing: 1px;
+                pointer-events: none; z-index: 10; box-shadow: 0 4px 20px rgba(0,0,0,0.6); }
+    .info-tip i { color: #88ddff; margin-right: 6px; }
+    @media (max-width: 600px) { .info-tip { font-size: 11px; padding: 6px 14px; bottom: 10px; } }
+  </style>
+</head>
+<body>
+
+  <!-- UI hint -->
+  <div class="info-tip">🧪 <i>Click a chemical → then click the beaker</i> · <span style="color:#ffcc88;">⚡</span> Reset button on table</div>
+
+  <a-scene background="color:#0b1424" shadow="enabled:true" physics="enabled:false">
+    
+    <!-- Atmospheric lights -->
+    <a-entity light="type:ambient; intensity:0.6; color:#c8d8ff"></a-entity>
+    <a-entity light="type:directional; intensity:1.4; color:#ffe6cc; castShadow:true" position="2 5 4" target="#table"></a-entity>
+    <a-entity light="type:point; intensity:0.5; color:#4488ff; distance:10" position="-2 3 1"></a-entity>
+    <a-entity light="type:point; intensity:0.4; color:#ff8844; distance:8" position="2 2 -1"></a-entity>
+
+    <!-- Camera with smooth look -->
+    <a-camera position="0 1.7 3.2" look-controls="pointerLockEnabled:false">
+      <a-cursor color="#66ddff" fuse="false" raycaster="far:5; objects:.clickable"></a-cursor>
+    </a-camera>
+
+    <!-- Sky gradient -->
+    <a-sky color="#0b1424"></a-sky>
+
+    <!-- Ground with subtle grid -->
+    <a-plane rotation="-90 0 0" width="20" height="20" color="#141e2b" position="0 -0.05 0" receiveShadow="true"></a-plane>
+    <a-gridHelper size="12" divisions="20" position="0 -0.02 -2" color="#3a5a7a" opacity="0.15"></a-gridHelper>
+
+    <!-- Main Lab Table (realistic) -->
+    <a-entity id="table" position="0 0.6 -2.2" rotation="0 0 0">
+      <!-- table top -->
+      <a-box width="3.2" height="0.15" depth="1.6" color="#2d3a4a" roughness="0.4" metalness="0.1" position="0 0.7 0" shadow="receive"></a-box>
+      <!-- legs -->
+      <a-cylinder radius="0.06" height="0.7" color="#4a5a6a" position="-1.4 0.35 0.6"></a-cylinder>
+      <a-cylinder radius="0.06" height="0.7" color="#4a5a6a" position="1.4 0.35 0.6"></a-cylinder>
+      <a-cylinder radius="0.06" height="0.7" color="#4a5a6a" position="-1.4 0.35 -0.6"></a-cylinder>
+      <a-cylinder radius="0.06" height="0.7" color="#4a5a6a" position="1.4 0.35 -0.6"></a-cylinder>
+      <!-- edge glow -->
+      <a-box width="3.0" height="0.02" depth="1.4" color="#5b7a9a" position="0 0.78 0" opacity="0.3"></a-box>
+    </a-entity>
+
+    <!-- Monitor / HUD panel -->
+    <a-entity position="-1.1 1.9 -3.0" rotation="0 12 0">
+      <a-box width="1.8" height="0.9" depth="0.06" color="#101a24" roughness="0.3" metalness="0.2" position="0 0 0"></a-box>
+      <a-box width="1.6" height="0.7" depth="0.02" color="#0a121c" position="0 0.05 0.04"></a-box>
+      <!-- screen glow -->
+      <a-plane width="1.5" height="0.65" color="#162a3a" position="0 0.05 0.07" opacity="0.3"></a-plane>
+    </a-entity>
+
+    <!-- Status texts (on monitor) -->
+    <a-text id="status" value="⚡ LAB ACTIVE" color="#66e0ff" align="center" width="2.2" position="-1.1 2.25 -2.88" font="mozillavr" scale="0.8 0.8 0.8"></a-text>
+    <a-text id="temp" value="🌡️ 25 °C" color="#ffcc77" width="1.8" position="-1.65 2.0 -2.88" font="mozillavr" scale="0.6 0.6 0.6" align="left"></a-text>
+    <a-text id="ph" value="🧪 pH 7.0" color="#77dd99" width="1.8" position="-0.5 2.0 -2.88" font="mozillavr" scale="0.6 0.6 0.6" align="left"></a-text>
+    <a-text id="score" value="🏆 0" color="#f0f0f0" align="center" width="2.0" position="-1.1 1.72 -2.88" font="mozillavr" scale="0.7 0.7 0.7"></a-text>
+    
+    <!-- Assistant message -->
+    <a-text id="assistant" value="🔬 select a compound" color="#b8e2ff" width="3.2" position="-1.2 1.45 -2.6" font="mozillavr" scale="0.5 0.5 0.5" align="center"></a-text>
+
+    <!-- Chemical bottles (clickable) with realistic look -->
+    <a-entity class="chemical clickable" id="blue" position="-0.9 1.4 -2.2">
+      <a-cylinder radius="0.09" height="0.32" color="#d0e0f0" roughness="0.2" metalness="0.1" opacity="0.7"></a-cylinder>
+      <a-cylinder radius="0.075" height="0.22" color="#0088dd" position="0 -0.02 0" roughness="0.1" metalness="0.2"></a-cylinder>
+      <a-cylinder radius="0.06" height="0.04" color="#aaccdd" position="0 0.16 0" opacity="0.6"></a-cylinder>
+      <a-text value="CuSO₄" color="#b0e0ff" align="center" width="0.4" position="0 -0.22 0" font="mozillavr" scale="0.3 0.3 0.3"></a-text>
+    </a-entity>
+
+    <a-entity class="chemical clickable" id="red" position="-0.3 1.4 -2.2">
+      <a-cylinder radius="0.09" height="0.32" color="#d0e0f0" roughness="0.2" metalness="0.1" opacity="0.7"></a-cylinder>
+      <a-cylinder radius="0.075" height="0.22" color="#dd2244" position="0 -0.02 0" roughness="0.1" metalness="0.2"></a-cylinder>
+      <a-cylinder radius="0.06" height="0.04" color="#aaccdd" position="0 0.16 0" opacity="0.6"></a-cylinder>
+      <a-text value="HNO₃" color="#ffa0a0" align="center" width="0.4" position="0 -0.22 0" font="mozillavr" scale="0.3 0.3 0.3"></a-text>
+    </a-entity>
+
+    <a-entity class="chemical clickable" id="green" position="0.3 1.4 -2.2">
+      <a-cylinder radius="0.09" height="0.32" color="#d0e0f0" roughness="0.2" metalness="0.1" opacity="0.7"></a-cylinder>
+      <a-cylinder radius="0.075" height="0.22" color="#22cc66" position="0 -0.02 0" roughness="0.1" metalness="0.2"></a-cylinder>
+      <a-cylinder radius="0.06" height="0.04" color="#aaccdd" position="0 0.16 0" opacity="0.6"></a-cylinder>
+      <a-text value="NaOH" color="#a0ffb0" align="center" width="0.4" position="0 -0.22 0" font="mozillavr" scale="0.3 0.3 0.3"></a-text>
+    </a-entity>
+
+    <a-entity class="chemical clickable" id="purple" position="0.9 1.4 -2.2">
+      <a-cylinder radius="0.09" height="0.32" color="#d0e0f0" roughness="0.2" metalness="0.1" opacity="0.7"></a-cylinder>
+      <a-cylinder radius="0.075" height="0.22" color="#9933dd" position="0 -0.02 0" roughness="0.1" metalness="0.2"></a-cylinder>
+      <a-cylinder radius="0.06" height="0.04" color="#aaccdd" position="0 0.16 0" opacity="0.6"></a-cylinder>
+      <a-text value="KMnO₄" color="#d0a0ff" align="center" width="0.4" position="0 -0.22 0" font="mozillavr" scale="0.3 0.3 0.3"></a-text>
+    </a-entity>
+
+    <!-- Beaker (clickable) with realistic glass -->
+    <a-entity id="beaker" class="clickable" position="0.05 1.35 -1.55">
+      <!-- glass body -->
+      <a-cylinder radius="0.22" height="0.45" color="#d8ecff" opacity="0.18" roughness="0.05" metalness="0.0" position="0 0.2 0"></a-cylinder>
+      <a-cylinder radius="0.20" height="0.40" color="#c0dfff" opacity="0.08" position="0 0.2 0"></a-cylinder>
+      <!-- rim -->
+      <a-torus radius="0.22" radius-tubing="0.015" color="#d0ecff" opacity="0.5" position="0 0.43 0" rotation="-90 0 0"></a-torus>
+      <!-- liquid (changes) -->
+      <a-cylinder id="liquid" radius="0.18" height="0.18" color="#88ccff" opacity="0.6" position="0 0.08 0" roughness="0.1" metalness="0.0"></a-cylinder>
+      <!-- bottom -->
+      <a-circle radius="0.18" color="#b0d0f0" opacity="0.2" position="0 0.02 0" rotation="-90 0 0"></a-circle>
+    </a-entity>
+
+    <!-- Smoke effect (particle-like) -->
+    <a-sphere id="smoke" radius="0.08" color="#eeeeff" opacity="0.7" position="0.05 1.75 -1.55" visible="false" material="transparent:true"></a-sphere>
+    <a-sphere id="smoke2" radius="0.06" color="#ddddff" opacity="0.5" position="0.05 1.9 -1.55" visible="false" material="transparent:true"></a-sphere>
+
+    <!-- Fire (cone + glow) -->
+    <a-cone id="fire" radius-bottom="0.10" radius-top="0.02" height="0.28" color="#ff8833" position="0.05 1.75 -1.55" visible="false" material="transparent:true; opacity:0.9"></a-cone>
+    <a-sphere id="fireglow" radius="0.12" color="#ff5500" opacity="0.25" position="0.05 1.7 -1.55" visible="false" material="transparent:true"></a-sphere>
+
+    <!-- Reset Button on table -->
+    <a-entity id="reset" class="clickable" position="0.65 0.82 -1.05">
+      <a-box width="0.5" height="0.15" depth="0.12" color="#cc4455" roughness="0.6" metalness="0.2" position="0 0 0"></a-box>
+      <a-box width="0.35" height="0.04" depth="0.04" color="#ffaabb" position="0 0.1 0"></a-box>
+      <a-text value="⟳ RESET" color="white" align="center" width="0.6" position="0 -0.02 0.08" font="mozillavr" scale="0.25 0.25 0.25"></a-text>
+    </a-entity>
+
+    <!-- decorative mini lights -->
+    <a-entity light="type:point; intensity:0.3; color:#66aaff" position="-1.5 2.0 -2.0"></a-entity>
+    <a-entity light="type:point; intensity:0.2; color:#ffaa66" position="1.5 2.0 -2.0"></a-entity>
+
+  </a-scene>
+
+  <script>
+    (function() {
+      // ---------- DATA ----------
+      const chemicals = {
+        blue: { name: "Copper Sulfate", color: "#33aaff", temp: 42, ph: 5.2, emoji: "🔵" },
+        red: { name: "Nitric Acid", color: "#ee3355", temp: 78, ph: 1.8, emoji: "🔴" },
+        green: { name: "Sodium Hydroxide", color: "#33dd77", temp: 58, ph: 13.0, emoji: "🟢" },
+        purple: { name: "KMnO₄", color: "#aa44ee", temp: 36, ph: 6.8, emoji: "🟣" }
+      };
+
+      let selected = null;
+      let score = 0;
+
+      // DOM refs (AFRAME entities)
+      const statusEl = document.getElementById('status');
+      const tempEl = document.getElementById('temp');
+      const phEl = document.getElementById('ph');
+      const scoreEl = document.getElementById('score');
+      const assistantEl = document.getElementById('assistant');
+      const liquidEl = document.getElementById('liquid');
+      const smokeEl = document.getElementById('smoke');
+      const smoke2El = document.getElementById('smoke2');
+      const fireEl = document.getElementById('fire');
+      const fireglowEl = document.getElementById('fireglow');
+
+      // Helper: update UI texts
+      function updateUI(data) {
+        if (data) {
+          tempEl.setAttribute('value', `🌡️ ${data.temp} °C`);
+          phEl.setAttribute('value', `🧪 pH ${data.ph}`);
+          liquidEl.setAttribute('color', data.color);
+          statusEl.setAttribute('value', `⚡ ${data.name} reacted`);
+          assistantEl.setAttribute('value', `✅ ${data.emoji} ${data.name} added`);
+        } else {
+          // reset state
+          tempEl.setAttribute('value', '🌡️ 25 °C');
+          phEl.setAttribute('value', '🧪 pH 7.0');
+          liquidEl.setAttribute('color', '#88ccff');
+          statusEl.setAttribute('value', '⚡ LAB ACTIVE');
+          assistantEl.setAttribute('value', '🔬 select a compound');
+        }
+      }
+
+      // Effects: smoke & fire
+      function triggerEffects(temp) {
+        // Smoke always appears
+        smokeEl.setAttribute('visible', 'true');
+        smoke2El.setAttribute('visible', 'true');
+        // animate smoke upwards
+        smokeEl.setAttribute('animation', `property:position; to:0.05 2.4 -1.55; dur:1500; easing:easeOutQuad`);
+        smoke2El.setAttribute('animation', `property:position; to:0.05 2.6 -1.55; dur:1800; easing:easeOutQuad`);
+        // fade out
+        setTimeout(() => {
+          smokeEl.setAttribute('visible', 'false');
+          smoke2El.setAttribute('visible', 'false');
+          // reset positions
+          smokeEl.setAttribute('position', '0.05 1.75 -1.55');
+          smoke2El.setAttribute('position', '0.05 1.85 -1.55');
+        }, 1900);
+
+        // Fire if temp > 60
+        if (temp > 60) {
+          fireEl.setAttribute('visible', 'true');
+          fireglowEl.setAttribute('visible', 'true');
+          // flicker animation
+          fireEl.setAttribute('animation', `property:scale; to:1.1 1.3 1.1; dur:200; easing:easeInOutQuad; loop:true`);
+          fireglowEl.setAttribute('animation', `property:scale; to:1.4 1.4 1.4; dur:300; easing:easeInOutQuad; loop:true`);
+          setTimeout(() => {
+            fireEl.setAttribute('visible', 'false');
+            fireglowEl.setAttribute('visible', 'false');
+            fireEl.removeAttribute('animation');
+            fireglowEl.removeAttribute('animation');
+            fireEl.setAttribute('scale', '1 1 1');
+            fireglowEl.setAttribute('scale', '1 1 1');
+          }, 2800);
+        }
+      }
+
+      // ---------- CLICK HANDLERS ----------
+      // Chemical click
+      document.querySelectorAll('.chemical').forEach(item => {
+        item.addEventListener('click', (evt) => {
+          evt.stopPropagation();
+          const id = item.id;
+          if (!chemicals[id]) return;
+          selected = id;
+          const data = chemicals[id];
+          assistantEl.setAttribute('value', `🧪 ${data.emoji} ${data.name} selected · click beaker`);
+          // highlight effect: scale up
+          item.setAttribute('animation', `property:scale; to:1.15 1.15 1.15; dur:100; easing:easeOutQuad`);
+          setTimeout(() => {
+            item.setAttribute('animation', `property:scale; to:1 1 1; dur:150; easing:easeOutQuad`);
+          }, 200);
+        });
+      });
+
+      // Beaker click
+      document.getElementById('beaker').addEventListener('click', (evt) => {
+        evt.stopPropagation();
+        if (!selected) {
+          assistantEl.setAttribute('value', '⚠️ first select a chemical!');
+          setTimeout(() => {
+            assistantEl.setAttribute('value', '🔬 select a compound');
+          }, 1200);
+          return;
+        }
+
+        const data = chemicals[selected];
+        if (!data) return;
+
+        // increase score
+        score += 10;
+        scoreEl.setAttribute('value', `🏆 ${score}`);
+
+        // update beaker liquid and monitor
+        updateUI(data);
+
+        // trigger effects (smoke + possibly fire)
+        triggerEffects(data.temp);
+
+        // extra feedback: assistant
+        assistantEl.setAttribute('value', `🔥 ${data.emoji} ${data.name} · reaction!`);
+
+        // small animation on beaker
+        const beaker = document.getElementById('beaker');
+        beaker.setAttribute('animation', `property:rotation; to:0 0 4; dur:50; easing:easeOutQuad`);
+        setTimeout(() => {
+          beaker.setAttribute('animation', `property:rotation; to:0 0 -2; dur:60; easing:easeOutQuad`);
+          setTimeout(() => {
+            beaker.setAttribute('animation', `property:rotation; to:0 0 0; dur:80; easing:easeOutQuad`);
+          }, 70);
+        }, 60);
+
+        // clear selected after reaction? keep it for multiple uses
+        // selected stays, so user can add same again, but we keep it.
+        // but we also want to allow selecting another.
+        // we just keep selected as is.
+      });
+
+      // Reset button
+      document.getElementById('reset').addEventListener('click', (evt) => {
+        evt.stopPropagation();
+        selected = null;
+        score = 0;
+        scoreEl.setAttribute('value', '🏆 0');
+        updateUI(null);
+        assistantEl.setAttribute('value', '🔄 reset · select chemical');
+        // reset effects
+        fireEl.setAttribute('visible', 'false');
+        fireglowEl.setAttribute('visible', 'false');
+        smokeEl.setAttribute('visible', 'false');
+        smoke2El.setAttribute('visible', 'false');
+        fireEl.removeAttribute('animation');
+        fireglowEl.removeAttribute('animation');
+        fireEl.setAttribute('scale', '1 1 1');
+        fireglowEl.setAttribute('scale', '1 1 1');
+        // liquid color reset
+        liquidEl.setAttribute('color', '#88ccff');
+        // temp/ph reset
+        tempEl.setAttribute('value', '🌡️ 25 °C');
+        phEl.setAttribute('value', '🧪 pH 7.0');
+        statusEl.setAttribute('value', '⚡ LAB ACTIVE');
+        // small animation
+        const resetBtn = document.getElementById('reset');
+        resetBtn.setAttribute('animation', `property:scale; to:0.9 0.9 0.9; dur:80; easing:easeOutQuad`);
+        setTimeout(() => {
+          resetBtn.setAttribute('animation', `property:scale; to:1 1 1; dur:100; easing:easeOutQuad`);
+        }, 100);
+      });
+
+      // additional: click on empty space to clear selection? but we keep it friendly
+      document.querySelector('a-scene').addEventListener('click', (evt) => {
+        // if click on background or non-interactive, just clear assistant hint after a while?
+        // but we don't want to interfere with clicks on objects.
+        // we ignore.
+      });
+
+      // extra: hover effect for clickable (cursor)
+      document.querySelectorAll('.clickable').forEach(el => {
+        el.addEventListener('mouseenter', () => {
+          el.setAttribute('scale', '1.03 1.03 1.03');
+        });
+        el.addEventListener('mouseleave', () => {
+          el.setAttribute('scale', '1 1 1');
+        });
+      });
+
+      console.log('🧪 Advanced VR Chemistry Lab loaded!');
+    })();
+  </script>
+</body>
+</html>
